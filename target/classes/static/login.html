@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeTrace - Login</title>
+    <style>
+        :root {
+            --bg: #0f141b;
+            --panel: #171d26;
+            --panel-2: #1f2733;
+            --text: #edf2f7;
+            --muted: #9aa7b7;
+            --line: #2d3746;
+            --accent: #32d0a0;
+            --danger: #ff5c7a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .login {
+            width: min(420px, calc(100% - 32px));
+            padding: 28px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        p {
+            margin: 0 0 22px;
+            color: var(--muted);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        input, button {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 15px;
+        }
+
+        input {
+            margin-bottom: 16px;
+            background: var(--panel-2);
+            color: var(--text);
+        }
+
+        button {
+            margin-top: 4px;
+            background: var(--accent);
+            color: #06110d;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .error {
+            min-height: 22px;
+            margin-top: 14px;
+            color: var(--danger);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<main class="login">
+    <h1>FakeTrace</h1>
+    <p>Ingresá con usuario y contraseña para acceder al panel.</p>
+
+    <form id="login-form">
+        <label for="username">Usuario</label>
+        <input id="username" name="username" type="text" autocomplete="username" required>
+
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+        <button type="submit">Ingresar</button>
+    </form>
+
+    <div id="error-msg" class="error"></div>
+</main>
+
+<script>
+    const form = document.getElementById('login-form');
+    const errorMsg = document.getElementById('error-msg');
+
+    // Si ya hay una sesion local activa, envia al dashboard.
+    if (sessionStorage.getItem('faketraceAuth') === 'true') {
+        window.location.href = 'index.html';
+    }
+
+    // Envia las credenciales al backend y guarda la sesion local si son validas.
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorMsg.textContent = '';
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch(`${window.location.origin}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const rawResponse = await response.text();
+            let data = {};
+
+            try {
+                data = rawResponse ? JSON.parse(rawResponse) : {};
+            } catch (parseError) {
+                throw new Error('El endpoint de login no devolvio JSON. Reinicia Spring Boot y entra desde http://localhost:8080/login.html');
+            }
+
+            if (!response.ok) throw new Error(data.message || 'No se pudo iniciar sesion');
+
+            sessionStorage.setItem('faketraceAuth', 'true');
+            sessionStorage.setItem('faketraceUser', data.username);
+            window.location.href = 'index.html';
+        } catch (error) {
+            errorMsg.textContent = error.message;
+        }
+    });
+</script>
+</body>
+</html>

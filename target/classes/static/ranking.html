@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeTrace - Ranking</title>
+    <style>
+        :root {
+            --bg: #0f141b;
+            --panel: #171d26;
+            --panel-2: #1f2733;
+            --text: #edf2f7;
+            --muted: #9aa7b7;
+            --line: #2d3746;
+            --accent: #32d0a0;
+            --danger: #ff5c7a;
+            --normal: #7d8794;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(15, 20, 27, 0.96);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { font-size: 22px; font-weight: 700; }
+        nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        nav a.active, nav a:hover {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 28px auto 44px;
+        }
+
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .subtitle { margin: 0 0 22px; color: var(--muted); }
+
+        .error {
+            min-height: 22px;
+            margin-bottom: 14px;
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .panel h2 { margin: 0 0 16px; font-size: 20px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+
+        th { color: var(--muted); font-weight: 600; }
+        td:last-child, th:last-child { text-align: right; }
+
+        .badge {
+            display: inline-flex;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge.bot { background: rgba(255, 92, 122, 0.15); color: var(--danger); }
+        .badge.verificado { background: rgba(50, 208, 160, 0.15); color: var(--accent); }
+        .badge.normal { background: rgba(125, 135, 148, 0.18); color: var(--normal); }
+
+        .bot-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .bot-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .bot-card span { color: var(--muted); font-size: 13px; }
+
+        @media (max-width: 960px) {
+            header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="brand">FakeTrace</div>
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="publicacion.html">Publicacion</a>
+        <a class="active" href="ranking.html">Ranking</a>
+        <a href="rastrear.html">Rastrear</a>
+        <a id="logout-link" href="login.html">Salir</a>
+    </nav>
+</header>
+
+<main>
+    <h1>Superpropagadores</h1>
+    <p class="subtitle">Ranking de usuarios por actividad y deteccion de comportamiento automatizado.</p>
+    <div id="error-msg" class="error"></div>
+
+    <section class="grid">
+        <article class="panel">
+            <h2>Top 10</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Seguidores</th>
+                    <th>Estado</th>
+                    <th>Compartidos</th>
+                </tr>
+                </thead>
+                <tbody id="tabla-ranking"></tbody>
+            </table>
+        </article>
+
+        <aside class="panel">
+            <h2>Bots detectados</h2>
+            <div id="lista-bots" class="bot-list"></div>
+        </aside>
+    </section>
+</main>
+
+<script>
+    const errorMsg = document.getElementById('error-msg');
+    let botsDetectados = new Set();
+
+    // Verifica que exista una sesion local antes de mostrar el ranking.
+    function verificarLogin() {
+        if (sessionStorage.getItem('faketraceAuth') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Cierra la sesion local y vuelve al login.
+    function configurarLogout() {
+        document.getElementById('logout-link').addEventListener('click', (event) => {
+            event.preventDefault();
+            sessionStorage.removeItem('faketraceAuth');
+            sessionStorage.removeItem('faketraceUser');
+            window.location.href = 'login.html';
+        });
+    }
+
+    function mostrarError(mensaje) {
+        errorMsg.textContent = mensaje;
+    }
+
+    async function obtenerJson(url, mensajeError) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(mensajeError);
+        return response.json();
+    }
+
+    function badgeUsuario(usuario) {
+        if (botsDetectados.has(usuario.id)) return '<span class="badge bot">Bot</span>';
+        if (usuario.verificado) return '<span class="badge verificado">Verificado</span>';
+        return '<span class="badge normal">Normal</span>';
+    }
+
+    // Carga la lista de usuarios detectados como bots.
+    async function cargarBots() {
+        const bots = await obtenerJson('/api/ranking/bots', 'No se pudieron cargar los bots');
+        botsDetectados = new Set(bots.map(usuario => usuario.id));
+
+        const contenedor = document.getElementById('lista-bots');
+        contenedor.innerHTML = bots.length ? bots.map(usuario => `
+            <div class="bot-card">
+                <div>
+                    <strong>${usuario.nombre ?? '-'}</strong><br>
+                    <span>${usuario.cantSeguidores ?? 0} seguidores</span>
+                </div>
+                <span class="badge bot">Bot</span>
+            </div>
+        `).join('') : '<p>No hay bots detectados.</p>';
+    }
+
+    // Carga el ranking de superpropagadores y aplica badges visuales.
+    async function cargarRanking() {
+        const ranking = await obtenerJson('/api/ranking/superpropagadores', 'No se pudo cargar el ranking');
+        const tbody = document.getElementById('tabla-ranking');
+        tbody.innerHTML = ranking.map(item => {
+            const usuario = item.usuario ?? item;
+            return `
+                <tr>
+                    <td>${usuario.nombre ?? '-'}</td>
+                    <td>${usuario.cantSeguidores ?? 0}</td>
+                    <td>${badgeUsuario(usuario)}</td>
+                    <td>${item.cantidadCompartidos ?? 0}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Inicializa la pantalla cargando bots antes del ranking para poder marcar badges.
+    async function iniciarRanking() {
+        try {
+            await cargarBots();
+            await cargarRanking();
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+
+    verificarLogin();
+    configurarLogout();
+    iniciarRanking();
+</script>
+</body>
+</html>

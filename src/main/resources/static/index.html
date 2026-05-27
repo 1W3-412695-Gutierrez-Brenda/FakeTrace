@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeTrace - Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f141b;
+            --panel: #171d26;
+            --panel-2: #1f2733;
+            --text: #edf2f7;
+            --muted: #9aa7b7;
+            --line: #2d3746;
+            --accent: #32d0a0;
+            --accent-2: #5ca8ff;
+            --danger: #ff5c7a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(15, 20, 27, 0.96);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { font-size: 22px; font-weight: 700; letter-spacing: 0; }
+
+        nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        nav a.active, nav a:hover {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 28px auto 44px;
+        }
+
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .subtitle { margin: 0 0 24px; color: var(--muted); }
+
+        .error {
+            min-height: 22px;
+            margin-bottom: 16px;
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card, .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .card { padding: 18px; }
+        .card span { display: block; color: var(--muted); font-size: 13px; }
+        .card strong { display: block; margin-top: 10px; font-size: 34px; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 18px;
+        }
+
+        .panel { padding: 18px; min-width: 0; }
+        .panel h2 { margin: 0 0 16px; font-size: 20px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        th { color: var(--muted); font-weight: 600; }
+        td:last-child, th:last-child { text-align: right; }
+
+        .chart-wrap { height: 320px; }
+
+        @media (max-width: 900px) {
+            header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .metrics, .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="brand">FakeTrace</div>
+    <nav>
+        <a class="active" href="index.html">Dashboard</a>
+        <a href="publicacion.html">Publicacion</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="rastrear.html">Rastrear</a>
+        <a id="logout-link" href="login.html">Salir</a>
+    </nav>
+</header>
+
+<main>
+    <h1>Dashboard general</h1>
+    <p class="subtitle">Resumen de usuarios, publicaciones, fuentes y propagacion por tema.</p>
+    <div id="error-msg" class="error"></div>
+
+    <section class="metrics">
+        <article class="card"><span>Total usuarios</span><strong id="total-usuarios">-</strong></article>
+        <article class="card"><span>Total publicaciones</span><strong id="total-publicaciones">-</strong></article>
+        <article class="card"><span>Total fuentes</span><strong id="total-fuentes">-</strong></article>
+        <article class="card"><span>Total temas</span><strong id="total-temas">-</strong></article>
+    </section>
+
+    <section class="grid">
+        <article class="panel">
+            <h2>Top 3 publicaciones</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Texto</th>
+                    <th>Compartidos</th>
+                </tr>
+                </thead>
+                <tbody id="top-publicaciones"></tbody>
+            </table>
+        </article>
+
+        <article class="panel">
+            <h2>Falsas por tema</h2>
+            <div class="chart-wrap">
+                <canvas id="grafico-temas"></canvas>
+            </div>
+        </article>
+    </section>
+</main>
+
+<script>
+    const errorMsg = document.getElementById('error-msg');
+    let chartTemas;
+
+    // Verifica que exista una sesion local antes de mostrar el dashboard.
+    function verificarLogin() {
+        if (sessionStorage.getItem('faketraceAuth') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Cierra la sesion local y vuelve al login.
+    function configurarLogout() {
+        document.getElementById('logout-link').addEventListener('click', (event) => {
+            event.preventDefault();
+            sessionStorage.removeItem('faketraceAuth');
+            sessionStorage.removeItem('faketraceUser');
+            window.location.href = 'login.html';
+        });
+    }
+
+    function mostrarError(mensaje) {
+        errorMsg.textContent = mensaje;
+    }
+
+    async function obtenerJson(url, mensajeError) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(mensajeError);
+        return response.json();
+    }
+
+    // Carga las metricas principales del dashboard.
+    async function cargarMetricas() {
+        try {
+            const data = await obtenerJson('/api/dashboard/metricas', 'No se pudieron cargar las metricas');
+            document.getElementById('total-usuarios').textContent = data.totalUsuarios ?? 0;
+            document.getElementById('total-publicaciones').textContent = data.totalPublicaciones ?? 0;
+            document.getElementById('total-fuentes').textContent = data.totalFuentes ?? 0;
+            document.getElementById('total-temas').textContent = data.totalTemas ?? 0;
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+
+    // Carga la tabla de publicaciones con mayor propagacion.
+    async function cargarTopPublicaciones() {
+        try {
+            const publicaciones = await obtenerJson('/api/dashboard/top-publicaciones', 'No se pudieron cargar las publicaciones');
+            const tbody = document.getElementById('top-publicaciones');
+            tbody.innerHTML = publicaciones.map(publicacion => `
+                <tr>
+                    <td>${publicacion.id ?? '-'}</td>
+                    <td>${publicacion.texto ?? '-'}</td>
+                    <td>${publicacion.cantCompartidos ?? 0}</td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+
+    // Carga el grafico de barras con publicaciones falsas por tema.
+    async function cargarGraficoPorTema() {
+        try {
+            const datos = await obtenerJson('/api/dashboard/por-tema', 'No se pudo cargar el grafico por tema');
+            const labels = datos.map(item => item.tema?.nombre ?? item.nombre ?? 'Sin tema');
+            const valores = datos.map(item => item.cantidadPublicacionesFalsas ?? item.cantidad ?? 0);
+
+            if (chartTemas) chartTemas.destroy();
+            chartTemas = new Chart(document.getElementById('grafico-temas'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Publicaciones falsas',
+                        data: valores,
+                        backgroundColor: '#32d0a0',
+                        borderColor: '#5ca8ff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#edf2f7' } } },
+                    scales: {
+                        x: { ticks: { color: '#9aa7b7' }, grid: { color: '#2d3746' } },
+                        y: { ticks: { color: '#9aa7b7', precision: 0 }, grid: { color: '#2d3746' } }
+                    }
+                }
+            });
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+
+    // Inicializa el dashboard al cargar la pagina.
+    async function iniciarDashboard() {
+        await Promise.all([cargarMetricas(), cargarTopPublicaciones(), cargarGraficoPorTema()]);
+    }
+
+    verificarLogin();
+    configurarLogout();
+    iniciarDashboard();
+</script>
+</body>
+</html>

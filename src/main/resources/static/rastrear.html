@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeTrace - Rastrear</title>
+    <style>
+        :root {
+            --bg: #0f141b;
+            --panel: #171d26;
+            --panel-2: #1f2733;
+            --text: #edf2f7;
+            --muted: #9aa7b7;
+            --line: #2d3746;
+            --accent: #32d0a0;
+            --accent-2: #5ca8ff;
+            --danger: #ff5c7a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(15, 20, 27, 0.96);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { font-size: 22px; font-weight: 700; }
+        nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        nav a.active, nav a:hover {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 28px auto 44px;
+        }
+
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .subtitle { margin: 0 0 22px; color: var(--muted); }
+
+        .error {
+            min-height: 22px;
+            margin-bottom: 14px;
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 420px;
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .panel h2 { margin: 0 0 16px; font-size: 20px; }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        input, button {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 11px 12px;
+            font-size: 15px;
+        }
+
+        input {
+            min-width: 150px;
+            background: var(--panel-2);
+            color: var(--text);
+        }
+
+        button {
+            background: var(--accent);
+            color: #06110d;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .timeline {
+            position: relative;
+            display: grid;
+            gap: 18px;
+            padding-left: 24px;
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: var(--line);
+        }
+
+        .step {
+            position: relative;
+            padding: 14px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .step::before {
+            content: "";
+            position: absolute;
+            left: -22px;
+            top: 18px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-2);
+            border: 2px solid var(--bg);
+        }
+
+        .step strong { display: block; margin-bottom: 4px; }
+        .step span { color: var(--muted); font-size: 13px; }
+
+        .path {
+            display: grid;
+            gap: 10px;
+            counter-reset: paso;
+        }
+
+        .path-item {
+            counter-increment: paso;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .path-item::before {
+            content: counter(paso);
+            display: inline-grid;
+            place-items: center;
+            flex: 0 0 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #06110d;
+            font-weight: 700;
+        }
+
+        @media (max-width: 960px) {
+            header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="brand">FakeTrace</div>
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="publicacion.html">Publicacion</a>
+        <a href="ranking.html">Ranking</a>
+        <a class="active" href="rastrear.html">Rastrear</a>
+        <a id="logout-link" href="login.html">Salir</a>
+    </nav>
+</header>
+
+<main>
+    <h1>Rastreo de origen</h1>
+    <p class="subtitle">Consulta cadenas de propagacion y caminos cortos entre usuarios.</p>
+    <div id="error-msg" class="error"></div>
+
+    <section class="grid">
+        <article class="panel">
+            <h2>Cadena completa</h2>
+            <div class="toolbar">
+                <input id="cadena-id" type="number" min="1" value="1" placeholder="ID publicacion">
+                <button id="cadena-btn">Ver cadena</button>
+            </div>
+            <div id="timeline" class="timeline"></div>
+        </article>
+
+        <aside class="panel">
+            <h2>Camino mas corto</h2>
+            <div class="toolbar">
+                <input id="desde-id" type="number" min="1" placeholder="Desde">
+                <input id="hasta-id" type="number" min="1" placeholder="Hasta">
+                <button id="camino-btn">Buscar</button>
+            </div>
+            <div id="camino" class="path"></div>
+        </aside>
+    </section>
+</main>
+
+<script>
+    const errorMsg = document.getElementById('error-msg');
+
+    // Verifica que exista una sesion local antes de mostrar el rastreo.
+    function verificarLogin() {
+        if (sessionStorage.getItem('faketraceAuth') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Cierra la sesion local y vuelve al login.
+    function configurarLogout() {
+        document.getElementById('logout-link').addEventListener('click', (event) => {
+            event.preventDefault();
+            sessionStorage.removeItem('faketraceAuth');
+            sessionStorage.removeItem('faketraceUser');
+            window.location.href = 'login.html';
+        });
+    }
+
+    function mostrarError(mensaje) {
+        errorMsg.textContent = mensaje;
+    }
+
+    function limpiarError() {
+        errorMsg.textContent = '';
+    }
+
+    async function obtenerJson(url, mensajeError) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(mensajeError);
+        return response.json();
+    }
+
+    function extraerUsuario(item) {
+        return item.usuario ?? item;
+    }
+
+    // Carga la cadena de propagacion y la dibuja como linea de tiempo.
+    async function cargarCadena() {
+        limpiarError();
+        const id = document.getElementById('cadena-id').value;
+        if (!id) {
+            mostrarError('Ingresa un id de publicacion');
+            return;
+        }
+
+        try {
+            const cadena = await obtenerJson(`/api/rastreo/${id}/cadena`, 'No se encontro cadena para la publicacion');
+            const ordenada = [...cadena].sort((a, b) => (a.saltos ?? 0) - (b.saltos ?? 0));
+            document.getElementById('timeline').innerHTML = ordenada.map(item => {
+                const usuario = extraerUsuario(item);
+                return `
+                    <div class="step">
+                        <strong>${usuario.nombre ?? 'Usuario desconocido'}</strong>
+                        <span>Saltos desde el origen: ${item.saltos ?? 0}</span>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            document.getElementById('timeline').innerHTML = '';
+            mostrarError(error.message);
+        }
+    }
+
+    // Busca el camino mas corto entre dos usuarios y lo muestra como pasos.
+    async function cargarCamino() {
+        limpiarError();
+        const desde = document.getElementById('desde-id').value;
+        const hasta = document.getElementById('hasta-id').value;
+
+        if (!desde || !hasta) {
+            mostrarError('Ingresa los dos ids de usuario');
+            return;
+        }
+
+        try {
+            const camino = await obtenerJson(`/api/rastreo/camino?desde=${desde}&hasta=${hasta}`, 'No se encontro camino entre usuarios');
+            document.getElementById('camino').innerHTML = camino.map(usuario => `
+                <div class="path-item">
+                    <div>
+                        <strong>${usuario.nombre ?? 'Usuario desconocido'}</strong><br>
+                        <span>ID ${usuario.id ?? '-'} · ${usuario.cantSeguidores ?? 0} seguidores</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            document.getElementById('camino').innerHTML = '';
+            mostrarError(error.message);
+        }
+    }
+
+    document.getElementById('cadena-btn').addEventListener('click', cargarCadena);
+    document.getElementById('camino-btn').addEventListener('click', cargarCamino);
+    verificarLogin();
+    configurarLogout();
+    cargarCadena();
+</script>
+</body>
+</html>

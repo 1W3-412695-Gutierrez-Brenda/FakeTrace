@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeTrace - Publicacion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/dist/vis-network.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/dist/vis-network.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f141b;
+            --panel: #171d26;
+            --panel-2: #1f2733;
+            --text: #edf2f7;
+            --muted: #9aa7b7;
+            --line: #2d3746;
+            --accent: #32d0a0;
+            --accent-2: #5ca8ff;
+            --danger: #ff5c7a;
+            --warn: #f7c948;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(15, 20, 27, 0.96);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { font-size: 22px; font-weight: 700; }
+        nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        nav a.active, nav a:hover {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 28px auto 44px;
+        }
+
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .subtitle { margin: 0 0 22px; color: var(--muted); }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        input, button {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 11px 12px;
+            font-size: 15px;
+        }
+
+        input {
+            min-width: 220px;
+            background: var(--panel);
+            color: var(--text);
+        }
+
+        button {
+            background: var(--accent);
+            color: #06110d;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .error {
+            min-height: 22px;
+            margin-bottom: 14px;
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 18px;
+            min-width: 0;
+        }
+
+        #grafo {
+            height: 560px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #111821;
+        }
+
+        .details h2 { margin: 0 0 14px; font-size: 20px; }
+        .field { margin-bottom: 14px; }
+        .field span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+        .field strong, .field p { margin: 0; overflow-wrap: anywhere; }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge.false { background: rgba(255, 92, 122, 0.15); color: var(--danger); }
+        .badge.true { background: rgba(50, 208, 160, 0.15); color: var(--accent); }
+        .origin { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+        @media (max-width: 960px) {
+            header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .layout { grid-template-columns: 1fr; }
+            #grafo { height: 420px; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="brand">FakeTrace</div>
+    <nav>
+        <a href="index.html">Dashboard</a>
+        <a class="active" href="publicacion.html">Publicacion</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="rastrear.html">Rastrear</a>
+        <a id="logout-link" href="login.html">Salir</a>
+    </nav>
+</header>
+
+<main>
+    <h1>Analisis de publicacion</h1>
+    <p class="subtitle">Explora la propagacion de una publicacion y su paciente cero.</p>
+
+    <section class="toolbar">
+        <input id="publicacion-id" type="number" min="1" value="1" placeholder="ID de publicacion">
+        <button id="buscar-btn">Buscar</button>
+    </section>
+
+    <div id="error-msg" class="error"></div>
+
+    <section class="layout">
+        <article class="panel">
+            <div id="grafo"></div>
+        </article>
+
+        <aside class="panel details">
+            <h2>Detalle</h2>
+            <div class="field">
+                <span>Texto</span>
+                <p id="detalle-texto">Sin datos</p>
+            </div>
+            <div class="field">
+                <span>Estado</span>
+                <strong id="detalle-estado">-</strong>
+            </div>
+            <div class="field">
+                <span>Fuente</span>
+                <strong id="detalle-fuente">-</strong>
+            </div>
+            <div class="field">
+                <span>Tema</span>
+                <strong id="detalle-tema">-</strong>
+            </div>
+            <div class="origin">
+                <div class="field">
+                    <span>Paciente cero</span>
+                    <strong id="origen-nombre">-</strong>
+                </div>
+                <div class="field">
+                    <span>Seguidores</span>
+                    <strong id="origen-seguidores">-</strong>
+                </div>
+            </div>
+        </aside>
+    </section>
+</main>
+
+<script>
+    const errorMsg = document.getElementById('error-msg');
+    let network;
+
+    // Verifica que exista una sesion local antes de mostrar la pantalla.
+    function verificarLogin() {
+        if (sessionStorage.getItem('faketraceAuth') !== 'true') {
+            window.location.href = 'login.html';
+        }
+    }
+
+    // Cierra la sesion local y vuelve al login.
+    function configurarLogout() {
+        document.getElementById('logout-link').addEventListener('click', (event) => {
+            event.preventDefault();
+            sessionStorage.removeItem('faketraceAuth');
+            sessionStorage.removeItem('faketraceUser');
+            window.location.href = 'login.html';
+        });
+    }
+
+    function mostrarError(mensaje) {
+        errorMsg.textContent = mensaje;
+    }
+
+    function limpiarError() {
+        errorMsg.textContent = '';
+    }
+
+    async function obtenerJson(url, mensajeError) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(mensajeError);
+        return response.json();
+    }
+
+    // Carga los datos completos de la publicacion para el panel lateral.
+    async function cargarDetalle(id) {
+        const publicacion = await obtenerJson(`/api/publicacion/${id}`, 'No se encontro la publicacion');
+        document.getElementById('detalle-texto').textContent = publicacion.texto ?? '-';
+        document.getElementById('detalle-estado').innerHTML = publicacion.esVerificada
+            ? '<span class="badge true">Verificada</span>'
+            : '<span class="badge false">Falsa</span>';
+        document.getElementById('detalle-fuente').textContent = publicacion.fuente?.nombre ?? '-';
+        document.getElementById('detalle-tema').textContent = publicacion.tema?.nombre ?? '-';
+    }
+
+    // Carga el nodo origen o paciente cero de la publicacion.
+    async function cargarOrigen(id) {
+        const origen = await obtenerJson(`/api/publicacion/${id}/origen`, 'No se encontro el origen');
+        document.getElementById('origen-nombre').textContent = origen.nombre ?? '-';
+        document.getElementById('origen-seguidores').textContent = origen.cantSeguidores ?? 0;
+    }
+
+    // Renderiza el grafo de propagacion recibido en formato Vis.js.
+    async function cargarGrafo(id) {
+        const data = await obtenerJson(`/api/publicacion/${id}/grafo`, 'No se pudo cargar el grafo');
+        const nodes = new vis.DataSet(data.nodes ?? []);
+        const edges = new vis.DataSet(data.edges ?? []);
+        const container = document.getElementById('grafo');
+
+        if (network) network.destroy();
+        network = new vis.Network(container, { nodes, edges }, {
+            nodes: {
+                shape: 'dot',
+                size: 18,
+                font: { color: '#edf2f7', size: 14 },
+                borderWidth: 2
+            },
+            edges: {
+                arrows: 'to',
+                color: '#5ca8ff',
+                font: { color: '#9aa7b7', size: 12, align: 'middle' },
+                smooth: { type: 'dynamic' }
+            },
+            groups: {
+                usuario: { color: { background: '#32d0a0', border: '#8ef0d0' } },
+                publicacion: { color: { background: '#ff5c7a', border: '#ff9aad' }, shape: 'box' }
+            },
+            physics: {
+                stabilization: true,
+                barnesHut: { gravitationalConstant: -3500, springLength: 140 }
+            }
+        });
+    }
+
+    // Ejecuta la busqueda completa para una publicacion.
+    async function buscarPublicacion() {
+        limpiarError();
+        const id = document.getElementById('publicacion-id').value;
+        if (!id) {
+            mostrarError('Ingresa un id de publicacion');
+            return;
+        }
+
+        try {
+            await Promise.all([cargarDetalle(id), cargarOrigen(id), cargarGrafo(id)]);
+        } catch (error) {
+            mostrarError(error.message);
+        }
+    }
+
+    document.getElementById('buscar-btn').addEventListener('click', buscarPublicacion);
+    verificarLogin();
+    configurarLogout();
+    buscarPublicacion();
+</script>
+</body>
+</html>
