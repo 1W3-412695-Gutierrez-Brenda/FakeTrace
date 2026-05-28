@@ -132,6 +132,18 @@
         .planet{position:absolute;width:220px;height:220px;border-radius:50%;right:-60px;top:20%;background:conic-gradient(from 180deg at 50% 50%, #12203a, #0b1220 40%, rgba(124,92,255,0.14));box-shadow:0 20px 60px rgba(0,0,0,0.6), inset -12px -8px 40px rgba(255,255,255,0.02);opacity:0.9;transform:scale(.92);filter:blur(0.6px)}
         body{background: radial-gradient(circle at 10% 10%, rgba(124,92,255,0.06), transparent 12%), radial-gradient(circle at 90% 80%, rgba(0,240,255,0.04), transparent 14%), linear-gradient(180deg,var(--bg) 0%, #081019 200%);}    
     </style>
+<style>
+/* Override: hacer no transparente todo lo que sea "info" */
+[class*="info"], [id*="info"], [class*="informacion"], .info, .informacion, .alert-info, .badge-info {
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-image: none !important;
+  background-color: rgba(17,17,17,1) !important; /* fondo opaco acorde al tema oscuro */
+  color: inherit !important;
+}
+</style>
 </head>
 <body>
 <div class="scene"><div class="nebula"></div><div class="stars"></div><div class="planet" aria-hidden="true"></div></div>
